@@ -1,0 +1,33 @@
+# Binaries
+bin/
+*.exe
+*.out
+
+# OS & Editor files
+.DS_Store
+*.swp
+*.swo
+
+# Configs
+.env
+*.yaml
+
+# Go
+vendor/
+go.sum
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+
+# Vault
+.vault-token
+
+# Docker
+docker-compose.override.yml
+
+# Node modules (jika pakai Next.js)
+web/node_modules/
+web/.next/
