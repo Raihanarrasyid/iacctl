@@ -1,0 +1,147 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: iacctl-postgres
+    environment:
+      POSTGRES_DB: iacctl
+      POSTGRES_USER: iacctl_user
+      POSTGRES_PASSWORD: iacctl_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iacctl_user -d iacctl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis for job queue (optional for future use)
+  redis:
+    image: redis:7-alpine
+    container_name: iacctl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # API Server (placeholder for future implementation)
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: iacctl-api
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=iacctl_user
+      - DB_PASSWORD=iacctl_password
+      - DB_NAME=iacctl
+      - SSL_MODE=prefer
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+    volumes:
+      - ../jobs-data:/app/jobs-data
+      - ../logs:/app/logs
+
+  # Background Worker (placeholder for future implementation)
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.worker
+    container_name: iacctl-worker
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=iacctl_user
+      - DB_PASSWORD=iacctl_password
+      - DB_NAME=iacctl
+      - SSL_MODE=prefer
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+      - WORKER_CONCURRENCY=5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+    volumes:
+      - ../jobs-data:/app/jobs-data
+      - ../logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock  # For Docker provider
+
+  # Web Dashboard (placeholder for future implementation)
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: iacctl-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: iacctl-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - api
+      - web
+    networks:
+      - iacctl-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  iacctl-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
