@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -29,9 +28,8 @@ func Load() *Config {
 		DBSSLMode:  os.Getenv("SSL_MODE"),
 	}
 
-	if cfg.DBHost == "" || cfg.DBUser == "" || cfg.DBName == "" {
-		log.Fatal("missing required database environment variables")
-	}
+	// Validate configuration
+	cfg.ValidateOrFatal()
 
 	return cfg
 }

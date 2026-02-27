@@ -20,6 +20,8 @@ func NewRootCommand(db *sql.DB) *cobra.Command {
 	}
 	
 	rootCmd.AddCommand(NewJobCreateCmd(db))
+	rootCmd.AddCommand(NewJobDestroyCmd(db))
+	rootCmd.AddCommand(NewMigrateCmd())
 	return rootCmd
 }
 
